@@ -115,7 +115,7 @@ def get_user_enquiries(user_id: int) -> list[dict]:
     """All enquiries (active and cancelled) for one user, newest first."""
     with closing(_connect()) as conn:
         rows = conn.execute(
-            f"SELECT * FROM enquiries WHERE user_id = { _placeholder() } ORDER BY id DESC",
+            f"SELECT * FROM enquiries WHERE user_id = {_placeholder()} ORDER BY id DESC",
             (user_id,),
         ).fetchall()
     return [dict(row) for row in rows]

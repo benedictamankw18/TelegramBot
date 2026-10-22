@@ -49,8 +49,8 @@ Do not run polling at the same time as the production webhook.
 | `PORT` | No | HTTP port; Render supplies this automatically |
 | `RENDER_EXTERNAL_URL` | Render | Used automatically when `WEBHOOK_URL` is blank |
 
-`OWNER_CHAT_Secert_ID` is not used by the source code and is intentionally not
-included. Only `OWNER_CHAT_ID` is needed for owner notifications.
+Only `OWNER_CHAT_ID` is used for owner notifications. No owner secret-ID
+variable is required.
 
 ## Neon PostgreSQL
 

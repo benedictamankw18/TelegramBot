@@ -79,13 +79,18 @@ async def run_server() -> None:
 
     application = bot.build_application()
     database.init_db()
-    await application.initialize()
-    await bot.post_init(application)
-    await application.start()
-
     runner = web.AppRunner(create_web_app(application))
+    application_initialized = False
+    application_started = False
+    runner_started = False
     try:
+        await application.initialize()
+        application_initialized = True
+        await bot.post_init(application)
+        await application.start()
+        application_started = True
         await runner.setup()
+        runner_started = True
         site = web.TCPSite(runner, "0.0.0.0", int(os.getenv("PORT", DEFAULT_PORT)))
         await site.start()
         await application.bot.set_webhook(
@@ -101,9 +106,12 @@ async def run_server() -> None:
         await asyncio_event()
     finally:
         runner.app["ready"] = False
-        await runner.cleanup()
-        await application.stop()
-        await application.shutdown()
+        if runner_started:
+            await runner.cleanup()
+        if application_started:
+            await application.stop()
+        if application_initialized:
+            await application.shutdown()
 
 
 async def asyncio_event() -> None:
