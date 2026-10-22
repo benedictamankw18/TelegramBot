@@ -50,6 +50,7 @@ Do not run polling at the same time as the production webhook.
 | `RENDER_EXTERNAL_URL` | Render | Used automatically when `WEBHOOK_URL` is blank |
 | `GEMINI_API_KEY` | No | Gemini API key used by `/ask` |
 | `GEMINI_MODEL` | No | Gemini model for `/ask`; defaults to `gemini-3.8-flash` |
+| `GEMINI_FALLBACK_MODEL` | No | Model tried if the primary model is unavailable; defaults to `gemini-2.5-flash` |
 
 Only `OWNER_CHAT_ID` is used for owner notifications. No owner secret-ID
 variable is required.
@@ -57,7 +58,9 @@ variable is required.
 The `/ask` command accepts a question, for example
 `/ask What services do you offer?`. Configure `GEMINI_API_KEY` in Render to
 enable it. If the key is missing or Gemini is unavailable, the bot returns a
-friendly temporary-unavailable message without exposing provider details.
+friendly temporary-unavailable message without exposing provider details. If
+the primary model returns an error such as a provider-side `503 UNAVAILABLE`,
+the configured fallback model is tried once.
 
 Enquiries use three statuses: `inprocess` for new or active work, `completed`,
 and `cancelled`. The owner can use `/showallhire` to see enquiries grouped by

@@ -322,7 +322,12 @@ async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await reply(update, AI_UNAVAILABLE_TEXT)
         return
 
-    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    primary_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+    fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash").strip()
+    models = [primary_model]
+    if fallback_model and fallback_model != primary_model:
+        models.append(fallback_model)
+
     prompt = (
         "You are the N3thunt3r technology assistant. Answer clearly and briefly. "
         "Only claim services, projects, skills, or contact details that are "
@@ -330,20 +335,23 @@ async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "redirect the user to N3thunt3r's technology services.\n\n"
         f"User question: {question}"
     )
-    try:
-        client = genai.Client(api_key=api_key)
-        response = await client.aio.models.generate_content(
-            model=model,
-            contents=prompt,
-        )
-        answer = (response.text or "").strip()
-    except Exception:
-        logger.exception("Gemini request failed.")
-        await reply(update, AI_UNAVAILABLE_TEXT)
-        return
+    client = genai.Client(api_key=api_key)
+    answer = ""
+    for model in models:
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+            )
+            answer = (response.text or "").strip()
+            if answer:
+                break
+            logger.warning("Gemini model %s returned an empty response.", model)
+        except Exception as error:
+            logger.warning("Gemini model %s failed: %s", model, error)
 
     if not answer:
-        logger.warning("Gemini returned an empty response.")
+        logger.error("All configured Gemini models failed.")
         await reply(update, AI_UNAVAILABLE_TEXT)
         return
 
