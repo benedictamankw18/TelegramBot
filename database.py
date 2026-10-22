@@ -53,7 +53,7 @@ def init_db() -> None:
                     name         TEXT NOT NULL,
                     need         TEXT NOT NULL,
                     description  TEXT NOT NULL,
-                    status       TEXT NOT NULL DEFAULT 'active',
+                    status       TEXT NOT NULL DEFAULT 'inprocess',
                     created_at   TEXT NOT NULL,
                     cancelled_at TEXT
                 )
@@ -69,7 +69,7 @@ def init_db() -> None:
                     name         TEXT NOT NULL,
                     need         TEXT NOT NULL,
                     description  TEXT NOT NULL,
-                    status       TEXT NOT NULL DEFAULT 'active',
+                    status       TEXT NOT NULL DEFAULT 'inprocess',
                     created_at   TEXT NOT NULL,
                     cancelled_at TEXT
                 )
@@ -77,6 +77,11 @@ def init_db() -> None:
             )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_enquiries_user ON enquiries(user_id)"
+        )
+        # Older deployments used "active" for enquiries that are still in
+        # progress. Normalize those rows while keeping existing data.
+        conn.execute(
+            "UPDATE enquiries SET status = 'inprocess' WHERE status = 'active'"
         )
 
 
@@ -92,7 +97,7 @@ def add_enquiry(
                 INSERT INTO enquiries
                     (user_id, username, name, need, description, status, created_at)
                 VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
-                        {placeholder}, 'active', {placeholder})
+                        {placeholder}, 'inprocess', {placeholder})
                 RETURNING id
                 """,
                 (user_id, username, name, need, description, _now()),
@@ -104,7 +109,7 @@ def add_enquiry(
             INSERT INTO enquiries
                 (user_id, username, name, need, description, status, created_at)
             VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
-                    {placeholder}, 'active', {placeholder})
+                    {placeholder}, 'inprocess', {placeholder})
             """,
             (user_id, username, name, need, description, _now()),
         )
@@ -144,7 +149,7 @@ def count_active(user_id: int) -> int:
     with closing(_connect()) as conn:
         row = conn.execute(
             f"SELECT COUNT(*) AS total FROM enquiries "
-            f"WHERE user_id = {placeholder} AND status = 'active'",
+            f"WHERE user_id = {placeholder} AND status IN ('active', 'inprocess')",
             (user_id,),
         ).fetchone()
     return int(row["total"])
@@ -157,7 +162,8 @@ def cancel_enquiry(user_id: int, enquiry_id: int) -> bool:
         cursor = conn.execute(
             f"""
             UPDATE enquiries SET status = 'cancelled', cancelled_at = {placeholder}
-            WHERE id = {placeholder} AND user_id = {placeholder} AND status = 'active'
+            WHERE id = {placeholder} AND user_id = {placeholder}
+              AND status IN ('active', 'inprocess')
             """,
             (_now(), enquiry_id, user_id),
         )
@@ -170,7 +176,7 @@ def cancel_all(user_id: int) -> list[int]:
     with closing(_connect()) as conn, conn:
         rows = conn.execute(
             f"SELECT id FROM enquiries WHERE user_id = {placeholder} "
-            "AND status = 'active' ORDER BY id",
+            "AND status IN ('active', 'inprocess') ORDER BY id",
             (user_id,),
         ).fetchall()
         ids = [int(row["id"]) for row in rows]
@@ -178,8 +184,28 @@ def cancel_all(user_id: int) -> list[int]:
             conn.execute(
                 f"""
                 UPDATE enquiries SET status = 'cancelled', cancelled_at = {placeholder}
-                WHERE user_id = {placeholder} AND status = 'active'
+                WHERE user_id = {placeholder}
+                  AND status IN ('active', 'inprocess')
                 """,
                 (_now(), user_id),
             )
     return ids
+
+
+def set_enquiry_status(enquiry_id: int, status: str) -> bool:
+    """Set an enquiry status from the owner administration flow."""
+    if status not in {"inprocess", "completed", "cancelled"}:
+        raise ValueError(f"Unsupported enquiry status: {status}")
+
+    placeholder = _placeholder()
+    cancelled_at = _now() if status == "cancelled" else None
+    with closing(_connect()) as conn, conn:
+        cursor = conn.execute(
+            f"""
+            UPDATE enquiries
+            SET status = {placeholder}, cancelled_at = {placeholder}
+            WHERE id = {placeholder}
+            """,
+            (status, cancelled_at, enquiry_id),
+        )
+        return cursor.rowcount > 0

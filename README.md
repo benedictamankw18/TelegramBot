@@ -59,6 +59,12 @@ The `/ask` command accepts a question, for example
 enable it. If the key is missing or Gemini is unavailable, the bot returns a
 friendly temporary-unavailable message without exposing provider details.
 
+Enquiries use three statuses: `inprocess` for new or active work, `completed`,
+and `cancelled`. The owner can use `/showallhire` to see enquiries grouped by
+status, or use `/completedOnly`, `/cancelOnly`, `/inprocessOnly`, and
+`/ActiveOnly` to filter the list. Owner-only `/completehire 7` and
+`/inprocesshire 7` change an enquiry's status.
+
 ## Neon PostgreSQL
 
 Create a Neon project and copy its pooled or direct connection string from the
@@ -112,7 +118,8 @@ The bot preserves `/start`, `/about`, `/services`, `/projects`, `/skills`,
 `/portfolio`, `/github`, `/contact`, `/ask`, `/help`, `/myhires`, `/cancelhire`,
 `/cancelall`, `/myid`, and `/hire`, including the multi-step hire conversation.
 The owner-only `/showallhire` command lists all enquiries when the sender's
-Telegram ID matches `OWNER_CHAT_ID`.
+Telegram ID matches `OWNER_CHAT_ID`; the status filters and status-changing
+commands use the same owner check.
 `/cancel` stops an in-progress enquiry without saving it.
 
 ## Testing

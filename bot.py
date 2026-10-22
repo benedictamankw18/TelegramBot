@@ -195,6 +195,7 @@ AI_UNAVAILABLE_TEXT = (
 HELP_TEXT = (
     "❓ <b>Help</b>\n\n"
     "You can use the menu buttons or type a command:\n\n"
+    "<b>🌐 Explore</b>\n"
     "/start - Show the main menu\n"
     "/about - About N3thunt3r\n"
     "/services - Services offered\n"
@@ -202,15 +203,24 @@ HELP_TEXT = (
     "/skills - Technologies and skills\n"
     "/portfolio - Portfolio link\n"
     "/github - GitHub profile\n"
-    "/contact - Contact information\n"
+    "/contact - Contact information\n\n"
+    "<b>🚀 Hire and enquiries</b>\n"
     "/hire - Send a project enquiry (you can send more than one)\n"
     "/myhires - View all your enquiries\n"
-    "/showallhire - Owner: view all enquiries\n"
     "/cancelhire - Cancel one enquiry (for example /cancelhire 7)\n"
     "/cancelall - Cancel all your active enquiries\n"
+    "/cancel - Stop the enquiry form you are filling in\n\n"
+    "<b>🔐 Owner enquiry administration</b>\n"
+    "/showallhire - Show all enquiries, grouped by status\n"
+    "/completedOnly - Show completed enquiries only\n"
+    "/cancelOnly - Show cancelled enquiries only\n"
+    "/inprocessOnly - Show in-process enquiries only\n"
+    "/ActiveOnly - Show active (in-process) enquiries only\n"
+    "/completehire &lt;id&gt; - Mark an enquiry completed\n"
+    "/inprocesshire &lt;id&gt; - Mark an enquiry in process\n\n"
+    "<b>🤖 Assistant</b>\n"
     "/ask &lt;question&gt; - Ask the AI assistant\n"
-    "/help - Show this help message\n"
-    "/cancel - Stop the enquiry form you are filling in"
+    "/help - Show this help message"
 )
 
 # ---------------------------------------------------------------------------
@@ -477,8 +487,13 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 def format_enquiry(enquiry: dict) -> str:
     """One enquiry as a short block of text."""
-    is_active = enquiry["status"] == "active"
-    icon, status = ("🟢", "Active") if is_active else ("⚪", "Cancelled")
+    status_details = {
+        "inprocess": ("🟡", "In process"),
+        "active": ("🟡", "In process"),
+        "completed": ("✅", "Completed"),
+        "cancelled": ("⚪", "Cancelled"),
+    }
+    icon, status = status_details.get(enquiry["status"], ("⚪", "Unknown"))
     return (
         f"{icon} <b>#{enquiry['id']}</b> · {status} · {enquiry['created_at'][:10]}\n"
         f"<b>Need:</b> {html.escape(shorten(enquiry['need'], 80))}\n"
@@ -513,23 +528,27 @@ def build_enquiry_list(
             None,
         )
 
-    active = [e for e in enquiries if e["status"] == "active"]
-    cancelled = [e for e in enquiries if e["status"] != "active"]
+    active = [
+        e for e in enquiries if e["status"] in {"active", "inprocess"}
+    ]
+    completed = [e for e in enquiries if e["status"] == "completed"]
+    cancelled = [e for e in enquiries if e["status"] == "cancelled"]
 
-    # Always show every active enquiry, then fill the rest with recent cancelled ones.
-    shown = sorted(
-        active + cancelled[: max(0, MAX_LISTED - len(active))],
-        key=lambda e: e["id"],
-        reverse=True,
-    )
+    # Keep current work visible first, then completed and cancelled history.
+    remaining = max(0, MAX_LISTED - len(active))
+    shown = active + completed[:remaining]
+    remaining = max(0, remaining - len(completed))
+    shown += cancelled[:remaining]
+    shown.sort(key=lambda e: e["id"], reverse=True)
 
     text = (
         prefix
-        + f"📋 <b>Your enquiries</b> ({len(active)} active, {len(enquiries)} total)\n\n"
+        + f"📋 <b>Your enquiries</b> ({len(active)} in process, "
+        f"{len(completed)} completed, {len(enquiries)} total)\n\n"
         + "\n\n".join(format_enquiry(e) for e in shown)
     )
     if len(shown) < len(enquiries):
-        text += "\n\n<i>Older cancelled enquiries are not shown.</i>"
+        text += "\n\n<i>Older enquiry history is not shown.</i>"
 
     buttons = [
         [InlineKeyboardButton(f"❌ Cancel #{e['id']}", callback_data=f"cancel:{e['id']}")]
@@ -552,35 +571,115 @@ def format_owner_enquiry(enquiry: dict) -> str:
 
 
 async def show_all_hires(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show every enquiry to the configured owner only."""
+    """Show owner enquiries, optionally filtered by status."""
+    await show_owner_hires(update, context)
+
+
+OWNER_STATUS_FILTERS = {
+    "completed": {"completed"},
+    "cancelled": {"cancelled"},
+    "inprocess": {"active", "inprocess"},
+    "active": {"active", "inprocess"},
+}
+
+
+async def show_owner_hires(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    status_filter: str | None = None,
+) -> None:
+    """Show owner enquiries grouped by status, with an optional filter."""
     user = update.effective_user
     if user is None or not OWNER_CHAT_ID or str(user.id) != OWNER_CHAT_ID.strip():
         await reply(update, "This command is only available to the bot owner.")
         return
 
     enquiries = database.get_all_enquiries()
+    if status_filter:
+        allowed = OWNER_STATUS_FILTERS[status_filter]
+        enquiries = [e for e in enquiries if e["status"] in allowed]
     if not enquiries:
-        await reply(update, "📋 There are no hire enquiries yet.")
+        label = f" {status_filter}" if status_filter else ""
+        await reply(update, f"📋 There are no{label} hire enquiries.")
         return
 
-    active_count = sum(enquiry["status"] == "active" for enquiry in enquiries)
+    inprocess_count = sum(
+        enquiry["status"] in {"active", "inprocess"} for enquiry in enquiries
+    )
+    completed_count = sum(enquiry["status"] == "completed" for enquiry in enquiries)
+    cancelled_count = sum(enquiry["status"] == "cancelled" for enquiry in enquiries)
     header = (
-        f"📋 <b>All hire enquiries</b> "
-        f"({active_count} active, {len(enquiries)} total)\n\n"
+        f"📋 <b>{'Filtered ' if status_filter else ''}hire enquiries</b>\n"
+        f"🟡 In process: {inprocess_count} · ✅ Completed: {completed_count} · "
+        f"⚪ Cancelled: {cancelled_count}\n\n"
+    )
+    groups = (
+        [("🟡 <b>In process</b>", {"active", "inprocess"}),
+         ("✅ <b>Completed</b>", {"completed"}),
+         ("⚪ <b>Cancelled</b>", {"cancelled"})]
+        if not status_filter
+        else [(f"<b>{status_filter.title()}</b>", OWNER_STATUS_FILTERS[status_filter])]
     )
     blocks: list[str] = []
     current = header
-    for enquiry in enquiries:
-        block = format_owner_enquiry(enquiry)
-        if len(current) + len(block) + 2 > 3900 and current != header:
+    for group_title, statuses in groups:
+        group = [e for e in enquiries if e["status"] in statuses]
+        if not group:
+            continue
+        group_block = group_title + "\n" + "\n\n".join(
+            format_owner_enquiry(enquiry) for enquiry in group
+        )
+        if len(current) + len(group_block) + 2 > 3900 and current != header:
             blocks.append(current)
             current = ""
-        current += block + "\n\n"
+        current += group_block + "\n\n"
     if current.strip():
         blocks.append(current.rstrip())
 
     for block in blocks:
         await reply(update, block)
+
+
+async def _set_owner_enquiry_status(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, status: str
+) -> None:
+    """Set one enquiry status after checking owner access."""
+    user = update.effective_user
+    if user is None or not OWNER_CHAT_ID or str(user.id) != OWNER_CHAT_ID.strip():
+        await reply(update, "This command is only available to the bot owner.")
+        return
+    if not context.args or not context.args[0].lstrip("#").isdigit():
+        await reply(update, "Please include an enquiry number, for example: /completehire 7")
+        return
+    enquiry_id = int(context.args[0].lstrip("#"))
+    if not database.set_enquiry_status(enquiry_id, status):
+        await reply(update, f"I couldn't find enquiry #{enquiry_id}.")
+        return
+    await reply(update, f"Enquiry #{enquiry_id} marked as {status}.")
+
+
+async def complete_hire(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _set_owner_enquiry_status(update, context, "completed")
+
+
+async def inprocess_hire(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _set_owner_enquiry_status(update, context, "inprocess")
+
+
+async def completed_only(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await show_owner_hires(update, context, "completed")
+
+
+async def cancelled_only(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await show_owner_hires(update, context, "cancelled")
+
+
+async def inprocess_only(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await show_owner_hires(update, context, "inprocess")
+
+
+async def active_only(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await show_owner_hires(update, context, "active")
 
 
 async def cancel_one(
@@ -592,8 +691,8 @@ async def cancel_one(
 
     if enquiry is None:
         return f"I couldn't find an enquiry #{enquiry_id} on your account."
-    if enquiry["status"] != "active":
-        return f"Enquiry #{enquiry_id} is already cancelled."
+    if enquiry["status"] not in {"active", "inprocess"}:
+        return f"Enquiry #{enquiry_id} is already {enquiry['status']}."
     if not database.cancel_enquiry(user.id, enquiry_id):
         return f"Enquiry #{enquiry_id} could not be cancelled. Please try again."
 
@@ -751,6 +850,16 @@ COMMANDS = {
     "cancel": cancel_command,
     "showallhire": show_all_hires,
     "showallhires": show_all_hires,
+    "completedOnly": completed_only,
+    "completedonly": completed_only,
+    "cancelOnly": cancelled_only,
+    "cancelonly": cancelled_only,
+    "inprocessOnly": inprocess_only,
+    "inprocessonly": inprocess_only,
+    "ActiveOnly": active_only,
+    "activeonly": active_only,
+    "completehire": complete_hire,
+    "inprocesshire": inprocess_hire,
     "myid": my_id,
 }
 
@@ -783,6 +892,12 @@ async def post_init(application: Application) -> None:
             BotCommand("hire", "Send a project enquiry"),
             BotCommand("myhires", "View my enquiries"),
             BotCommand("showallhire", "Owner: view all enquiries"),
+            BotCommand("completedOnly", "Owner: show completed enquiries"),
+            BotCommand("cancelOnly", "Owner: show cancelled enquiries"),
+            BotCommand("inprocessOnly", "Owner: show in-process enquiries"),
+            BotCommand("ActiveOnly", "Owner: show active enquiries"),
+            BotCommand("completehire", "Owner: mark enquiry completed"),
+            BotCommand("inprocesshire", "Owner: mark enquiry in process"),
             BotCommand("cancelhire", "Cancel one enquiry"),
             BotCommand("cancelall", "Cancel all my enquiries"),
             BotCommand("ask", "Ask the AI assistant"),
