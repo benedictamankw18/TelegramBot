@@ -48,9 +48,16 @@ Do not run polling at the same time as the production webhook.
 | `WEBHOOK_URL` | No | Full public webhook base URL; otherwise Render's URL is used |
 | `PORT` | No | HTTP port; Render supplies this automatically |
 | `RENDER_EXTERNAL_URL` | Render | Used automatically when `WEBHOOK_URL` is blank |
+| `GEMINI_API_KEY` | No | Gemini API key used by `/ask` |
+| `GEMINI_MODEL` | No | Gemini model for `/ask`; defaults to `gemini-3.8-flash` |
 
 Only `OWNER_CHAT_ID` is used for owner notifications. No owner secret-ID
 variable is required.
+
+The `/ask` command accepts a question, for example
+`/ask What services do you offer?`. Configure `GEMINI_API_KEY` in Render to
+enable it. If the key is missing or Gemini is unavailable, the bot returns a
+friendly temporary-unavailable message without exposing provider details.
 
 ## Neon PostgreSQL
 
@@ -104,6 +111,8 @@ recent delivery errors.
 The bot preserves `/start`, `/about`, `/services`, `/projects`, `/skills`,
 `/portfolio`, `/github`, `/contact`, `/ask`, `/help`, `/myhires`, `/cancelhire`,
 `/cancelall`, `/myid`, and `/hire`, including the multi-step hire conversation.
+The owner-only `/showallhire` command lists all enquiries when the sender's
+Telegram ID matches `OWNER_CHAT_ID`.
 `/cancel` stops an in-progress enquiry without saving it.
 
 ## Testing

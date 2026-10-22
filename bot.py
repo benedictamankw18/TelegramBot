@@ -17,6 +17,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
+from google import genai
 from telegram import (
     BotCommand,
     InlineKeyboardButton,
@@ -179,8 +180,12 @@ CONTACT_TEXT = (
 
 ASK_TEXT = (
     "🤖 <b>Ask N3thunt3r</b>\n\n"
-    "The AI assistant will be added in a future version.\n"
-    "For now, use the menu to explore services, projects, and skills."
+    "Send your question like this:\n"
+    "<code>/ask What services do you offer?</code>"
+)
+AI_UNAVAILABLE_TEXT = (
+    "🤖 The AI assistant is temporarily unavailable. "
+    "Please try again later or use the menu to explore services, projects, and skills."
 )
 
 HELP_TEXT = (
@@ -196,9 +201,10 @@ HELP_TEXT = (
     "/contact - Contact information\n"
     "/hire - Send a project enquiry (you can send more than one)\n"
     "/myhires - View all your enquiries\n"
+    "/showallhire - Owner: view all enquiries\n"
     "/cancelhire - Cancel one enquiry (for example /cancelhire 7)\n"
     "/cancelall - Cancel all your active enquiries\n"
-    "/ask - AI assistant (coming soon)\n"
+    "/ask <question> - Ask the AI assistant\n"
     "/help - Show this help message\n"
     "/cancel - Stop the enquiry form you are filling in"
 )
@@ -287,8 +293,43 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Placeholder: an AI assistant can be connected here in a later version.
-    await reply(update, ASK_TEXT)
+    question = " ".join(context.args).strip()
+    if not question:
+        await reply(update, ASK_TEXT)
+        return
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        logger.warning("GEMINI_API_KEY is not configured.")
+        await reply(update, AI_UNAVAILABLE_TEXT)
+        return
+
+    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    prompt = (
+        "You are the N3thunt3r technology assistant. Answer clearly and briefly. "
+        "Only claim services, projects, skills, or contact details that are "
+        "consistent with the bot's menu. If the question is unrelated, politely "
+        "redirect the user to N3thunt3r's technology services.\n\n"
+        f"User question: {question}"
+    )
+    try:
+        client = genai.Client(api_key=api_key)
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=prompt,
+        )
+        answer = (response.text or "").strip()
+    except Exception:
+        logger.exception("Gemini request failed.")
+        await reply(update, AI_UNAVAILABLE_TEXT)
+        return
+
+    if not answer:
+        logger.warning("Gemini returned an empty response.")
+        await reply(update, AI_UNAVAILABLE_TEXT)
+        return
+
+    await reply(update, f"🤖 <b>Ask N3thunt3r</b>\n\n{html.escape(answer)}")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -492,6 +533,48 @@ def build_enquiry_list(
     return text, (InlineKeyboardMarkup(buttons) if buttons else None)
 
 
+def format_owner_enquiry(enquiry: dict) -> str:
+    """Format an enquiry with its sender details for the owner."""
+    username = f"@{html.escape(enquiry['username'])}" if enquiry["username"] else "no username"
+    return (
+        f"{format_enquiry(enquiry)}\n"
+        f"<b>From:</b> {html.escape(enquiry['name'])} "
+        f"({username}, ID: {enquiry['user_id']})"
+    )
+
+
+async def show_all_hires(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show every enquiry to the configured owner only."""
+    user = update.effective_user
+    if user is None or not OWNER_CHAT_ID or str(user.id) != OWNER_CHAT_ID.strip():
+        await reply(update, "This command is only available to the bot owner.")
+        return
+
+    enquiries = database.get_all_enquiries()
+    if not enquiries:
+        await reply(update, "📋 There are no hire enquiries yet.")
+        return
+
+    active_count = sum(enquiry["status"] == "active" for enquiry in enquiries)
+    header = (
+        f"📋 <b>All hire enquiries</b> "
+        f"({active_count} active, {len(enquiries)} total)\n\n"
+    )
+    blocks: list[str] = []
+    current = header
+    for enquiry in enquiries:
+        block = format_owner_enquiry(enquiry)
+        if len(current) + len(block) + 2 > 3900 and current != header:
+            blocks.append(current)
+            current = ""
+        current += block + "\n\n"
+    if current.strip():
+        blocks.append(current.rstrip())
+
+    for block in blocks:
+        await reply(update, block)
+
+
 async def cancel_one(
     update: Update, context: ContextTypes.DEFAULT_TYPE, enquiry_id: int
 ) -> str:
@@ -658,6 +741,8 @@ COMMANDS = {
     "cancelhire": cancel_hire_command,
     "cancelall": cancel_all_command,
     "cancel": cancel_command,
+    "showallhire": show_all_hires,
+    "showallhires": show_all_hires,
     "myid": my_id,
 }
 
@@ -689,9 +774,10 @@ async def post_init(application: Application) -> None:
             BotCommand("contact", "Contact information"),
             BotCommand("hire", "Send a project enquiry"),
             BotCommand("myhires", "View my enquiries"),
+            BotCommand("showallhire", "Owner: view all enquiries"),
             BotCommand("cancelhire", "Cancel one enquiry"),
             BotCommand("cancelall", "Cancel all my enquiries"),
-            BotCommand("ask", "AI assistant (coming soon)"),
+            BotCommand("ask", "Ask the AI assistant"),
             BotCommand("help", "Show help"),
         ]
     )

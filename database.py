@@ -121,6 +121,13 @@ def get_user_enquiries(user_id: int) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def get_all_enquiries() -> list[dict]:
+    """Return all enquiries for the owner, newest first."""
+    with closing(_connect()) as conn:
+        rows = conn.execute("SELECT * FROM enquiries ORDER BY id DESC").fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_enquiry(user_id: int, enquiry_id: int) -> dict | None:
     """One enquiry, but only if it belongs to this user."""
     placeholder = _placeholder()
