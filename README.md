@@ -61,8 +61,8 @@ friendly temporary-unavailable message without exposing provider details.
 
 Enquiries use three statuses: `inprocess` for new or active work, `completed`,
 and `cancelled`. The owner can use `/showallhire` to see enquiries grouped by
-status, or use `/completedOnly`, `/cancelOnly`, `/inprocessOnly`, and
-`/ActiveOnly` to filter the list. Owner-only `/completehire 7` and
+status, or use `/completedonly`, `/cancelonly`, `/inprocessonly`, and
+`/activeonly` to filter the list. Owner-only `/completehire 7` and
 `/inprocesshire 7` change an enquiry's status.
 
 ## Neon PostgreSQL

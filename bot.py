@@ -212,10 +212,10 @@ HELP_TEXT = (
     "/cancel - Stop the enquiry form you are filling in\n\n"
     "<b>🔐 Owner enquiry administration</b>\n"
     "/showallhire - Show all enquiries, grouped by status\n"
-    "/completedOnly - Show completed enquiries only\n"
-    "/cancelOnly - Show cancelled enquiries only\n"
-    "/inprocessOnly - Show in-process enquiries only\n"
-    "/ActiveOnly - Show active (in-process) enquiries only\n"
+    "/completedonly - Show completed enquiries only\n"
+    "/cancelonly - Show cancelled enquiries only\n"
+    "/inprocessonly - Show in-process enquiries only\n"
+    "/activeonly - Show active (in-process) enquiries only\n"
     "/completehire &lt;id&gt; - Mark an enquiry completed\n"
     "/inprocesshire &lt;id&gt; - Mark an enquiry in process\n\n"
     "<b>🤖 Assistant</b>\n"
@@ -850,13 +850,9 @@ COMMANDS = {
     "cancel": cancel_command,
     "showallhire": show_all_hires,
     "showallhires": show_all_hires,
-    "completedOnly": completed_only,
     "completedonly": completed_only,
-    "cancelOnly": cancelled_only,
     "cancelonly": cancelled_only,
-    "inprocessOnly": inprocess_only,
     "inprocessonly": inprocess_only,
-    "ActiveOnly": active_only,
     "activeonly": active_only,
     "completehire": complete_hire,
     "inprocesshire": inprocess_hire,
@@ -892,10 +888,10 @@ async def post_init(application: Application) -> None:
             BotCommand("hire", "Send a project enquiry"),
             BotCommand("myhires", "View my enquiries"),
             BotCommand("showallhire", "Owner: view all enquiries"),
-            BotCommand("completedOnly", "Owner: show completed enquiries"),
-            BotCommand("cancelOnly", "Owner: show cancelled enquiries"),
-            BotCommand("inprocessOnly", "Owner: show in-process enquiries"),
-            BotCommand("ActiveOnly", "Owner: show active enquiries"),
+            BotCommand("completedonly", "Owner: show completed enquiries"),
+            BotCommand("cancelonly", "Owner: show cancelled enquiries"),
+            BotCommand("inprocessonly", "Owner: show in-process enquiries"),
+            BotCommand("activeonly", "Owner: show active enquiries"),
             BotCommand("completehire", "Owner: mark enquiry completed"),
             BotCommand("inprocesshire", "Owner: mark enquiry in process"),
             BotCommand("cancelhire", "Cancel one enquiry"),
