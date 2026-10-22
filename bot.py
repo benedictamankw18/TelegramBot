@@ -19,6 +19,7 @@ import os
 from dotenv import load_dotenv
 from telegram import (
     BotCommand,
+    BotCommandScopeChat,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
@@ -210,6 +211,12 @@ HELP_TEXT = (
     "/cancelhire - Cancel one enquiry (for example /cancelhire 7)\n"
     "/cancelall - Cancel all your active enquiries\n"
     "/cancel - Stop the enquiry form you are filling in\n\n"
+    "<b>🤖 Assistant</b>\n"
+    "/ask &lt;question&gt; - Ask the AI assistant\n"
+    "/help - Show this help message"
+)
+
+OWNER_HELP_TEXT = (
     "<b>🔐 Owner enquiry administration</b>\n"
     "/showallhire - Show all enquiries, grouped by status\n"
     "/completedonly - Show completed enquiries only\n"
@@ -218,9 +225,6 @@ HELP_TEXT = (
     "/activeonly - Show active (in-process) enquiries only\n"
     "/completehire &lt;id&gt; - Mark an enquiry completed\n"
     "/inprocesshire &lt;id&gt; - Mark an enquiry in process\n\n"
-    "<b>🤖 Assistant</b>\n"
-    "/ask &lt;question&gt; - Ask the AI assistant\n"
-    "/help - Show this help message"
 )
 
 # ---------------------------------------------------------------------------
@@ -359,7 +363,13 @@ async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await reply(update, HELP_TEXT)
+    user = update.effective_user
+    is_owner = (
+        user is not None
+        and OWNER_CHAT_ID
+        and str(user.id) == OWNER_CHAT_ID.strip()
+    )
+    await reply(update, f"{HELP_TEXT[:HELP_TEXT.index('<b>🤖 Assistant</b>')]}{OWNER_HELP_TEXT if is_owner else ''}{HELP_TEXT[HELP_TEXT.index('<b>🤖 Assistant</b>'):]}")
 
 
 async def my_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -883,18 +893,26 @@ BUTTONS = {
 
 async def post_init(application: Application) -> None:
     """Runs once at startup: fills Telegram's blue "Menu" command list."""
-    await application.bot.set_my_commands(
-        [
-            BotCommand("start", "Show the main menu"),
-            BotCommand("about", "About N3thunt3r"),
-            BotCommand("services", "Services offered"),
-            BotCommand("projects", "Project examples"),
-            BotCommand("skills", "Technologies and skills"),
-            BotCommand("portfolio", "Portfolio link"),
-            BotCommand("github", "GitHub profile"),
-            BotCommand("contact", "Contact information"),
-            BotCommand("hire", "Send a project enquiry"),
-            BotCommand("myhires", "View my enquiries"),
+    public_commands = [
+        BotCommand("start", "Show the main menu"),
+        BotCommand("about", "About N3thunt3r"),
+        BotCommand("services", "Services offered"),
+        BotCommand("projects", "Project examples"),
+        BotCommand("skills", "Technologies and skills"),
+        BotCommand("portfolio", "Portfolio link"),
+        BotCommand("github", "GitHub profile"),
+        BotCommand("contact", "Contact information"),
+        BotCommand("hire", "Send a project enquiry"),
+        BotCommand("myhires", "View my enquiries"),
+        BotCommand("cancelhire", "Cancel one enquiry"),
+        BotCommand("cancelall", "Cancel all my enquiries"),
+        BotCommand("ask", "Ask the AI assistant"),
+        BotCommand("help", "Show help"),
+    ]
+    await application.bot.set_my_commands(public_commands)
+
+    if OWNER_CHAT_ID:
+        owner_commands = public_commands + [
             BotCommand("showallhire", "Owner: view all enquiries"),
             BotCommand("completedonly", "Owner: show completed enquiries"),
             BotCommand("cancelonly", "Owner: show cancelled enquiries"),
@@ -902,12 +920,11 @@ async def post_init(application: Application) -> None:
             BotCommand("activeonly", "Owner: show active enquiries"),
             BotCommand("completehire", "Owner: mark enquiry completed"),
             BotCommand("inprocesshire", "Owner: mark enquiry in process"),
-            BotCommand("cancelhire", "Cancel one enquiry"),
-            BotCommand("cancelall", "Cancel all my enquiries"),
-            BotCommand("ask", "Ask the AI assistant"),
-            BotCommand("help", "Show help"),
         ]
-    )
+        await application.bot.set_my_commands(
+            owner_commands,
+            scope=BotCommandScopeChat(chat_id=int(OWNER_CHAT_ID.strip())),
+        )
 
 
 def _get_token() -> str:
