@@ -17,7 +17,6 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from google import genai
 from telegram import (
     BotCommand,
     InlineKeyboardButton,
@@ -37,6 +36,11 @@ from telegram.ext import (
 )
 
 import database
+
+try:
+    from google import genai
+except ImportError:
+    genai = None
 
 # ---------------------------------------------------------------------------
 # Setup: environment variables and logging
@@ -301,6 +305,10 @@ async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         logger.warning("GEMINI_API_KEY is not configured.")
+        await reply(update, AI_UNAVAILABLE_TEXT)
+        return
+    if genai is None:
+        logger.error("Gemini support is unavailable because google-genai is not installed.")
         await reply(update, AI_UNAVAILABLE_TEXT)
         return
 
