@@ -686,19 +686,18 @@ async def post_init(application: Application) -> None:
     )
 
 
-def main() -> None:
+def _get_token() -> str:
     token = os.getenv("BOT_TOKEN")
     if not token or token in ("YOUR_TELEGRAM_BOT_TOKEN", "PASTE_MY_BOT_TOKEN_HERE"):
         raise SystemExit(
             "BOT_TOKEN is missing. Open the .env file and set your BotFather token, "
             "for example: BOT_TOKEN=123456:ABC..."
         )
+    return token
 
-    # Create the database table if it does not exist yet.
-    database.init_db()
-
-    application = Application.builder().token(token).post_init(post_init).build()
-
+def build_application() -> Application:
+    """Build and configure the Telegram application without starting it."""
+    application = Application.builder().token(_get_token()).post_init(post_init).build()
     # Text that should NOT be treated as an answer inside the hire flow:
     # commands and menu button presses still work while an enquiry form is open.
     menu_labels = list(BUTTONS) + [BTN_HIRE]
@@ -742,8 +741,14 @@ def main() -> None:
     # 6) Global error handler.
     application.add_error_handler(error_handler)
 
-    logger.info("N3thunt3r bot is running. Press Ctrl+C to stop.")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    return application
+
+
+def main() -> None:
+    """Run the bot with polling for local development."""
+    database.init_db()
+    logger.info("N3thunt3r bot is running in polling mode. Press Ctrl+C to stop.")
+    build_application().run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
