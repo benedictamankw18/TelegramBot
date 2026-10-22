@@ -411,6 +411,14 @@ async def hire_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return ConversationHandler.END
 
 
+async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/cancel when the user is not currently filling in the hire form."""
+    if context.user_data.pop("enquiry", None) is None:
+        await reply(update, "There is no active enquiry form to cancel. Send /hire to start one.")
+        return
+    await reply(update, "❌ Form cancelled. Nothing was sent. You are back at the main menu.")
+
+
 # ---------------------------------------------------------------------------
 # My enquiries: view, cancel one, cancel all
 # ---------------------------------------------------------------------------
@@ -647,6 +655,7 @@ COMMANDS = {
     "myhires": my_hires,
     "cancelhire": cancel_hire_command,
     "cancelall": cancel_all_command,
+    "cancel": cancel_command,
     "myid": my_id,
 }
 
