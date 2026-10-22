@@ -208,7 +208,7 @@ HELP_TEXT = (
     "/showallhire - Owner: view all enquiries\n"
     "/cancelhire - Cancel one enquiry (for example /cancelhire 7)\n"
     "/cancelall - Cancel all your active enquiries\n"
-    "/ask <question> - Ask the AI assistant\n"
+    "/ask &lt;question&gt; - Ask the AI assistant\n"
     "/help - Show this help message\n"
     "/cancel - Stop the enquiry form you are filling in"
 )
