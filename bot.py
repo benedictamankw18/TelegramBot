@@ -398,8 +398,10 @@ async def hire_description(
         f"<b>Need:</b> {html.escape(enquiry['need'])}\n"
         f"<b>Description:</b> {html.escape(description)}\n\n"
         f"{closing}\n\n"
-        "Send another with /hire, view all with /myhires, "
-        "or cancel with /cancelhire.",
+        "<b>What would you like to do next?</b>\n"
+        "🚀 Send another enquiry with /hire\n"
+        "📋 View your enquiries with /myhires\n"
+        "📩 Contact N3thunt3r with /contact",
     )
     return ConversationHandler.END
 
