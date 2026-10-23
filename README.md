@@ -117,7 +117,8 @@ recent delivery errors.
 
 ## Commands
 
-The bot preserves `/start`, `/about`, `/services`, `/projects`, `/skills`,
+The bot preserves `/start`, `/about`, `/services` (website services and GHS
+pricing), `/projects`, `/skills`,
 `/portfolio`, `/github`, `/contact`, `/ask`, `/help`, `/myhires`, `/cancelhire`,
 `/cancelall`, `/myid`, and `/hire`, including the multi-step hire conversation.
 The owner-only `/showallhire` command lists all enquiries when the sender's
