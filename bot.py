@@ -26,6 +26,7 @@ from telegram import (
     Update,
 )
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -316,50 +317,64 @@ async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await reply(update, ASK_TEXT)
         return
 
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        logger.warning("GEMINI_API_KEY is not configured.")
-        await reply(update, AI_UNAVAILABLE_TEXT)
-        return
-    if genai is None:
-        logger.error("Gemini support is unavailable because google-genai is not installed.")
-        await reply(update, AI_UNAVAILABLE_TEXT)
+    message = update.effective_message
+    if message is None:
         return
 
-    primary_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
-    fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash").strip()
-    models = [primary_model]
-    if fallback_model and fallback_model != primary_model:
-        models.append(fallback_model)
-
-    prompt = (
-        "You are the N3thunt3r technology assistant. Answer clearly and briefly. "
-        "Only claim services, projects, skills, or contact details that are "
-        "consistent with the bot's menu. If the question is unrelated, politely "
-        "redirect the user to N3thunt3r's technology services.\n\n"
-        f"User question: {question}"
+    loading_message = await message.reply_text(
+        "⏳ <b>Loading...</b>",
+        parse_mode=ParseMode.HTML,
     )
-    client = genai.Client(api_key=api_key)
-    answer = ""
-    for model in models:
+    try:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            logger.warning("GEMINI_API_KEY is not configured.")
+            await reply(update, AI_UNAVAILABLE_TEXT)
+            return
+        if genai is None:
+            logger.error("Gemini support is unavailable because google-genai is not installed.")
+            await reply(update, AI_UNAVAILABLE_TEXT)
+            return
+
+        primary_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+        fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash").strip()
+        models = [primary_model]
+        if fallback_model and fallback_model != primary_model:
+            models.append(fallback_model)
+
+        prompt = (
+            "You are the N3thunt3r technology assistant. Answer clearly and briefly. "
+            "Only claim services, projects, skills, or contact details that are "
+            "consistent with the bot's menu. If the question is unrelated, politely "
+            "redirect the user to N3thunt3r's technology services.\n\n"
+            f"User question: {question}"
+        )
+        client = genai.Client(api_key=api_key)
+        answer = ""
+        for model in models:
+            try:
+                response = await client.aio.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+                answer = (response.text or "").strip()
+                if answer:
+                    break
+                logger.warning("Gemini model %s returned an empty response.", model)
+            except Exception as error:
+                logger.warning("Gemini model %s failed: %s", model, error)
+
+        if not answer:
+            logger.error("All configured Gemini models failed.")
+            await reply(update, AI_UNAVAILABLE_TEXT)
+            return
+
+        await reply(update, f"🤖 <b>Ask N3thunt3r</b>\n\n{html.escape(answer)}")
+    finally:
         try:
-            response = await client.aio.models.generate_content(
-                model=model,
-                contents=prompt,
-            )
-            answer = (response.text or "").strip()
-            if answer:
-                break
-            logger.warning("Gemini model %s returned an empty response.", model)
-        except Exception as error:
-            logger.warning("Gemini model %s failed: %s", model, error)
-
-    if not answer:
-        logger.error("All configured Gemini models failed.")
-        await reply(update, AI_UNAVAILABLE_TEXT)
-        return
-
-    await reply(update, f"🤖 <b>Ask N3thunt3r</b>\n\n{html.escape(answer)}")
+            await loading_message.delete()
+        except TelegramError:
+            logger.warning("Could not delete the Gemini loading message.")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
