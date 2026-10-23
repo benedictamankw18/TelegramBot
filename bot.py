@@ -233,12 +233,32 @@ OWNER_HELP_TEXT = (
 # ---------------------------------------------------------------------------
 
 
-async def reply(update: Update, text: str, markup=MAIN_MENU) -> None:
-    """Send an HTML-formatted reply (with the main menu by default)."""
+async def reply(
+    update: Update,
+    text: str,
+    markup=MAIN_MENU,
+    *,
+    show_loading: bool = True,
+) -> None:
+    """Send a response with a temporary loading message."""
     message = update.effective_message
     if message is None:
         return
-    await message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+
+    loading_message = None
+    if show_loading:
+        loading_message = await message.reply_text(
+            "⏳ <b>Loading...</b>",
+            parse_mode=ParseMode.HTML,
+        )
+    try:
+        await message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+    finally:
+        if loading_message is not None:
+            try:
+                await loading_message.delete()
+            except TelegramError:
+                logger.warning("Could not delete the loading message.")
 
 
 def describe_sender(update: Update) -> str:
@@ -329,11 +349,11 @@ async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             logger.warning("GEMINI_API_KEY is not configured.")
-            await reply(update, AI_UNAVAILABLE_TEXT)
+            await reply(update, AI_UNAVAILABLE_TEXT, show_loading=False)
             return
         if genai is None:
             logger.error("Gemini support is unavailable because google-genai is not installed.")
-            await reply(update, AI_UNAVAILABLE_TEXT)
+            await reply(update, AI_UNAVAILABLE_TEXT, show_loading=False)
             return
 
         primary_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
@@ -366,10 +386,14 @@ async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if not answer:
             logger.error("All configured Gemini models failed.")
-            await reply(update, AI_UNAVAILABLE_TEXT)
+            await reply(update, AI_UNAVAILABLE_TEXT, show_loading=False)
             return
 
-        await reply(update, f"🤖 <b>Ask N3thunt3r</b>\n\n{html.escape(answer)}")
+        await reply(
+            update,
+            f"🤖 <b>Ask N3thunt3r</b>\n\n{html.escape(answer)}",
+            show_loading=False,
+        )
     finally:
         try:
             await loading_message.delete()
