@@ -46,7 +46,7 @@ logger = logging.getLogger("n3thunt3r")
 # Configuration: edit the values below to change what the bot says
 # ---------------------------------------------------------------------------
 
-PORTFOLIO_URL = "http://portfolio.n3thunt3r.me/"
+PORTFOLIO_URL = "https://site-zeta-three-65.vercel.app/"
 GITHUB_URL = "https://github.com/benedictamankw18"
 
 # Replace this placeholder when you are ready to publish real contact details.

@@ -64,18 +64,20 @@ logger = logging.getLogger("n3thunt3r")
 # Configuration: edit the values below to change what the bot says
 # ---------------------------------------------------------------------------
 
-PORTFOLIO_URL = "http://n3thunt3r.me/portfolio/"
+PORTFOLIO_URL = "http://portfolio.n3thunt3r.me/"
 GITHUB_URL = "https://github.com/benedictamankw18"
 
 # Contact channels shown by /contact and the 📩 Contact button (HTML formatted).
 CONTACT_DETAILS = (
     "💬 <b>Telegram:</b> @Kali0Nethunter\n"
-    '📢 <b>Telegram community:</b> <a href="https://t.me/n3thunt3rsocial">N3thunt3r Social</a>\n'
+    '📢 <b>Telegram community:</b> <a href="https://t.me/+VQ869u0G2po3NGFk">N3thunt3r Social</a>\n'
+    '📢 <b>Telegram Group Chat:</b> <a href="https://t.me/+7KhsUB9m0tg0MWJk">N3thunt3r Social Chat</a>\n'
     '🟢 <b>WhatsApp:</b> <a href="https://wa.me/233594500785">Chat on WhatsApp</a>\n'
-    "📞 <b>Phone:</b> +233594500785, 0550030318, 0543779868\n"
+    "📞 <b>Phone:</b> +233594500785, +233550030318, +233543779868\n"
     '💼 <b>LinkedIn:</b> <a href="https://www.linkedin.com/in/benedict-amankwa-991a5635b/">Benedict Amankwa Osei</a>\n'
     '🐙 <b>GitHub:</b> <a href="https://github.com/benedictamankw18">benedictamankw18</a>'
 )
+
 
 # Your personal Telegram chat ID. Enquiry alerts are sent here.
 OWNER_CHAT_ID = os.getenv("OWNER_CHAT_ID")
@@ -167,7 +169,8 @@ SERVICES_TEXT = (
     "📞 Call: 0543779868\n"
     "✉️ benedictamankwa18@gmail.com\n"
     "✉️ benedictamankwa9@gmail.com\n"
-    "🌐 n3thunt3r.me/portfolio\n\n"
+    "🌐 portfolio.n3thunt3r.me/\n\n"
+    "🌐 https://site-zeta-three-65.vercel.app/\n\n"
     "<b>FAST • RELIABLE • AFFORDABLE</b>\n\n"
     "Ready to get started? Tap <b>🚀 Hire N3thunt3r</b> or send /hire."
 )
